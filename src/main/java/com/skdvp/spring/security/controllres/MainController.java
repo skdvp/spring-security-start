@@ -18,5 +18,15 @@ public class MainController {
         return "secured start of web service: " + principal.getName();
     }
 
+    @GetMapping("/read_profile")
+    public String pageForReadProfile(){
+        return "read profile page";
+    }
+
+    @GetMapping("/only_for_admins")
+    public String pageOnlyForAdmins(){
+        return "admins page";
+    }
+
 
 }

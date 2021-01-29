@@ -8,6 +8,9 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.provisioning.JdbcUserDetailsManager;
+
+import javax.sql.DataSource;
 
 @EnableWebSecurity
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
@@ -16,6 +19,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
         http.authorizeRequests()
                 .antMatchers("/authenticated/**").authenticated()
+                .antMatchers("/only_for_admins/**").hasRole("ADMIN")
+                .antMatchers("/read_profile/**").hasAuthority("READ_PROFILE")
                 .and()
                 .formLogin()
                 .and()
@@ -24,7 +29,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
-    public UserDetailsService user() {
+    public JdbcUserDetailsManager user(DataSource dataSource) {
+
         UserDetails user = User.builder()
                 .username("user")
                 .password("{bcrypt}$2a$10$5Oe1Y6AafLNqu9b4/jTptuysvHAcmFFk/RCe09yLzl74MBBedOINy")  //100
@@ -37,7 +43,19 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .roles("USER", "ADMIN")
                 .build();
 
-        return new InMemoryUserDetailsManager(user, admin);
+        JdbcUserDetailsManager jdbcUserDetailsManager = new JdbcUserDetailsManager(dataSource);
+
+        if (jdbcUserDetailsManager.userExists(user.getUsername())) {
+            jdbcUserDetailsManager.deleteUser(user.getUsername());
+        }
+        if (jdbcUserDetailsManager.userExists(admin.getUsername())) {
+            jdbcUserDetailsManager.deleteUser(admin.getUsername());
+        }
+
+        jdbcUserDetailsManager.createUser(user);
+        jdbcUserDetailsManager.createUser(admin);
+
+        return jdbcUserDetailsManager;
     }
 
 
