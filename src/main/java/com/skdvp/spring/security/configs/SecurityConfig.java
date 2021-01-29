@@ -1,19 +1,22 @@
 package com.skdvp.spring.security.configs;
 
+import com.skdvp.spring.security.services.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
-import org.springframework.security.provisioning.JdbcUserDetailsManager;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
-import javax.sql.DataSource;
-
-@EnableWebSecurity
+@EnableWebSecurity/*(debug = true)*/
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+    @Autowired
+    private UserService userService;
+
+
     @Override
     protected void configure(HttpSecurity http) throws Exception {
 
@@ -24,38 +27,26 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .and()
                 .formLogin()
                 .and()
-                .logout().logoutSuccessUrl("/");
+                .logout().logoutSuccessUrl("/")
+                /*.and()
+                .csrf().disable()*/;
+                // отключение вшитого токена, который вшивается по умолчанию для защиты от жуликов
 
     }
 
+
     @Bean
-    public JdbcUserDetailsManager user(DataSource dataSource) {
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
-        UserDetails user = User.builder()
-                .username("user")
-                .password("{bcrypt}$2a$10$5Oe1Y6AafLNqu9b4/jTptuysvHAcmFFk/RCe09yLzl74MBBedOINy")  //100
-                .roles("USER")
-                .build();
 
-        UserDetails admin = User.builder()
-                .username("admin")
-                .password("{bcrypt}$2a$10$5Oe1Y6AafLNqu9b4/jTptuysvHAcmFFk/RCe09yLzl74MBBedOINy")  //100
-                .roles("USER", "ADMIN")
-                .build();
-
-        JdbcUserDetailsManager jdbcUserDetailsManager = new JdbcUserDetailsManager(dataSource);
-
-        if (jdbcUserDetailsManager.userExists(user.getUsername())) {
-            jdbcUserDetailsManager.deleteUser(user.getUsername());
-        }
-        if (jdbcUserDetailsManager.userExists(admin.getUsername())) {
-            jdbcUserDetailsManager.deleteUser(admin.getUsername());
-        }
-
-        jdbcUserDetailsManager.createUser(user);
-        jdbcUserDetailsManager.createUser(admin);
-
-        return jdbcUserDetailsManager;
+    @Bean
+    public DaoAuthenticationProvider daoAuthenticationProvider() {
+        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
+        authenticationProvider.setPasswordEncoder(passwordEncoder());
+        authenticationProvider.setUserDetailsService(userService);
+        return authenticationProvider;
     }
 
 
